@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shiba Time Tracker</title>
+    <link rel="icon" href="https://shiba.hackclub.com/favicon.ico">
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #090909;
+            text-align: center;
+            color: #e9e9e9;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100%;
+            overflow: hidden;
+
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            margin: 0;
+        }
+
+        .settings {
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            text-align: left;
+            margin: 20px;
+        }
+        .settings p {
+            font-size: 1.2em;
+            font-weight: bold;
+            padding: 0;
+            margin: 0;
+        }
+        .settings span, .settings a {
+            font-weight: normal;
+        }
+        .settings button {
+            margin-left: 10px;
+            font-size: 1rem;
+            cursor: pointer;
+            background-color: #333;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        .settings .invalid {
+            color: #f55;
+            display: none;
+            margin-left: 10px;
+        }
+
+        .panel-row {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 2rem;
+        }
+
+        .panel {
+            background-color: #191919;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            width: 250px;
+            position: relative;
+            padding-bottom: 15px;
+        }
+        .panel .title {
+            display: block;
+            font-size: 1.1rem;
+            margin: 10px;
+        }
+        .panel .title.code-time {
+            color: #88c589;
+        }
+        .panel .title.art-time {
+            color: #c88484;
+        }
+        .panel .title.partial-time {
+            color: #bbb;
+        }
+        
+        .panel .extra {
+            display: block;
+            font-size: 0.9em;
+            margin: 5px 10px;
+            color: #ccc;
+        }
+        .panel .extra.warning {
+            color: #f90;
+        }
+        .panel .value {
+            font-size: 2em;
+            font-weight: bold;
+        }
+        .panel progress {
+            --color: #4caf50;
+
+            height: 10px;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: transparent;
+
+            border-radius: 100px;
+            background-color: #333;
+            border: none;
+        }
+        .panel progress::-webkit-progress-bar {
+            border-radius: 100px;
+            background-color: #333;
+        }
+        .panel progress::-webkit-progress-value {
+            background-color: var(--color);
+            border-radius: 100px;
+        }
+        .panel progress::-moz-progress-bar { /* This can't be combined with the above because webkit doesn't like it?? */
+            background-color: var(--color);
+            border-radius: 100px;
+        }
+
+        .posts {
+            margin-top: 30px;
+            text-align: left;
+            max-height: 300px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            width: 60vw;
+            padding: 10px;
+            gap: 5px;
+        }
+        .posts::-webkit-scrollbar {
+            background-color: #222;
+            width: 5px;
+        }
+        .posts::-webkit-scrollbar-thumb {
+            background-color: #555;
+            border-radius: 10px;
+        }
+        .post {
+            background-color: #191919;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            border-radius: 5px;
+            padding: 5px 8px;
+            display: flex;
+            flex-direction: row;
+        }
+        .post .badge {
+            background-color: var(--color, #4b814d);
+            color: white;
+            padding: 2px 10px;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-right: 1rem;
+            flex-shrink: 0;
+        }
+        .post .logged-time {
+            flex-shrink: 0;
+            margin-left: 2rem;
+        }
+        .post .logged-time.warning {
+            color: #f90;
+        }
+        .post .badge.devlog {
+            --color: #4b814d;
+        }
+        .post .badge.artlog {
+            --color: #814d4d;
+        }
+        .post .badge.demo {
+            --color: #4d4d81;
+        }
+        .post .description {
+            color: #aaa;
+            font-size: 0.9rem;
+            font-style: italic;
+            flex-grow: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+
+        .reloading {
+            margin-top: 20px;
+            font-style: italic;
+            color: #888;
+            display: none;
+        }
+        .last-updated {
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            margin: 20px;
+            font-size: 0.9em;
+            color: #888;
+        }
+        .last-updated button {
+            font-size: 0.9em;
+            cursor: pointer;
+            background-color: #333;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+        .last-updated button:disabled {
+            color: #666;
+            cursor: default;
+        }
+    </style>
+</head>
+<body>
+    <h1>Shiba Time Tracker</h1>
+
+    <div class="panel-row">
+        <div class="panel">
+            <span class="title code-time">Total hackatime time</span>
+            <div class="value" id="total-hackatime-time">...</div>
+        </div>
+        <div class="panel">
+            <span class="title art-time">Total artlog time</span>
+            <div class="value" id="total-artlog-time">...</div>
+        </div>
+        <div class="panel">
+            <span class="title partial-time">Total logged time</span>
+            <div class="value" id="total-logged-time">...</div>
+        </div>
+        <div class="panel">
+            <span class="title">Total time + unlogged</span>
+            <div class="value" id="total-time">...</div>
+        </div>
+    </div>
+    <div class="panel-row">
+        <div class="panel">
+            <span class="title code-time">Hackatime since last log</span>
+            <div class="value" id="hackatime-since-last-log">...</div>
+            <progress id="progress-since-last-log" value="0" max="100" style="width: 100%;"></progress>
+        </div>
+        <div class="panel">
+            <span class="title partial-time">Since last demo</span>
+            <div class="value" id="tracked-since-last-demo">...</div>
+            <progress id="progress-tracked-since-last-demo" value="0" max="100" style="width: 100%;"></progress>
+            <span class="extra warning" title="The latest log has 0 time, so shiba is still likely updating. Numbers are based on the time the log was posted." id="log-still-updating" style="display: none">estimate; latest log is still updating</span>
+        </div>
+        <div class="panel">
+            <span class="title">Since last demo + unlogged</span>
+            <div class="value" id="since-last-demo">...</div>
+            <span class="extra">Expected playtest tickets: <span id="expected-playtest-tickets">0</span></span>
+            <progress id="progress-since-last-demo" value="0" max="100" style="width: 100%;"></progress>
+        </div>
+    </div>
+
+    <div class="posts" id="posts">
+        <!-- <div class="post">
+            <span class="badge">Devlog</span>
+            <span class="description">We're so back! Something blah blah...</span>
+            <span class="logged-time">2h 30m logged</span>
+        </div> -->
+    </div>
+
+    <p class="reloading" id="reloading-shiba">Reloading Shiba data. The Shiba API is slow, so this may take a bit.</p>
+    
+    <p class="last-updated"><button id="refresh">Refresh</button> <span id="last-updated">Last updated: never</span></p>
+
+    <div class="settings">
+        <p>
+            Hackatime API key: <span id="api-key"></span>
+            <button id="edit-api-key">Change</button>
+            <span class="invalid" id="invalid-api-key">Invalid API key</span>
+            <span class="invalid" id="hackatime-down">Hackatime API down :(</span>
+        </p>
+        <p>
+            Hackatime project: <span id="hackatime-project-name"></span>
+            <button id="edit-hackatime-project">Change</button>
+            <span class="invalid" id="invalid-hackatime-project">Invalid project</span>
+        </p>
+        <p>
+            Shiba token: <a id="shiba-token"></a>
+            <button id="edit-shiba-token">Change</button>
+            <span class="invalid" id="invalid-shiba-token">Invalid API key</span>
+        </p>
+        <p>
+            Shiba project: <a id="shiba-project-name"></a>
+            <button id="edit-shiba-project">Change</button>
+            <span class="invalid" id="invalid-shiba-project">Invalid project</span>
+        </p>
+        <p>
+            Notifications: <span id="notification-permission">...</span>
+            <button id="request-notification-permission" onclick="Notification.requestPermission().then(() => location.reload())">Request</button>
+        </p>
+    </div>
+
+    <script>
+        const cacheShibaDuration = 5 * 60; // 5 minutes
+        const cacheHackatimeDuration = 60; // 1 minute
+
+        function loadStorageValue(key, promptText) {
+            let value = localStorage.getItem(key);
+            while(!value) {
+                value = prompt(promptText);
+                if(value) localStorage.setItem(key, value);
+            }
+            return value;
+        }
+
+        const apiKey = loadStorageValue('shibaHackatimeApiKey', 'Please enter your hackatime API key:');
+        const shibaToken = loadStorageValue('shibaToken', 'Please enter your shiba token (found with `localStorage.getItem("token")` on a Shiba page):');
+
+        const projectName = loadStorageValue('shibaHackatimeProject', 'Please enter your hackatime project name:');
+        const shibaProjectName = loadStorageValue('shibaProjectName', 'Please enter your shiba project name:');
+        
+        document.getElementById('hackatime-project-name').innerText = projectName;
+        document.getElementById('edit-hackatime-project').onclick = () => {
+            localStorage.removeItem('shibaHackatimeProject');
+            location.reload();
+        };
+
+        document.getElementById('api-key').innerText = `*******${apiKey.slice(-4)}`;
+        document.getElementById('edit-api-key').onclick = () => {
+            localStorage.removeItem('shibaHackatimeApiKey');
+            location.reload();
+        };
+
+        document.getElementById('shiba-token').innerText = `*******${shibaToken.slice(-4)}`;
+        document.getElementById('edit-shiba-token').onclick = () => {
+            localStorage.removeItem('shibaToken');
+            location.reload();
+        };
+
+        document.getElementById('shiba-project-name').innerText = shibaProjectName;
+        document.getElementById('edit-shiba-project').onclick = () => {
+            localStorage.removeItem('shibaProjectName');
+            location.reload();
+        };
+
+        const notificationPermission = Notification.permission;
+        const notifPermissionText = document.getElementById('notification-permission');
+        const notifRequestButton = document.getElementById('request-notification-permission');
+        if(notificationPermission === 'denied') {
+            notifPermissionText.innerText = "Denied";
+            notifRequestButton.style.display = 'none';
+            notifPermissionText.style.color = '#f55';
+        } else if(notificationPermission === 'granted') {
+            notifPermissionText.innerText = "Granted";
+            notifRequestButton.style.display = 'none';
+            notifPermissionText.style.color = '#5f5';
+        } else {
+            notifPermissionText.innerText = "Disabled";
+            notifRequestButton.style.display = 'inline';
+            notifPermissionText.style.color = '#f55';
+        }
+
+        notifRequestButton.onclick = () => {
+            Notification.requestPermission().then(() => location.reload());
+        };
+
+        const apiBase = `https://hackatime.hackclub.com/api/v1/`;
+        async function sendHackatimeRequest(endpoint, cacheDuration = 0, hackatimeCacheKey = "", params = {}) {
+            const cacheKey = `hackatime_cache_${hackatimeCacheKey}`;
+            const now = Date.now();
+
+            // Check cache
+            if(cacheDuration > 0) {
+                const cached = localStorage.getItem(cacheKey);
+                if(cached) {
+                    try {
+                        const { data, timestamp } = JSON.parse(cached);
+                        if(now - timestamp < cacheDuration * 1000) {
+                            console.log('Using cached data for', endpoint);
+                            return data;
+                        }
+                        console.log('Cache expired for', endpoint);
+                    } catch (e) {
+                        // fall through to fetch
+                    }
+                }
+            }
+
+            // Fetch from API
+            params = Object.fromEntries(Object.entries(params).filter(([_, v]) => v != undefined))
+            const paramsString = new URLSearchParams(params).toString();
+            if(paramsString) endpoint += `?${paramsString}`;
+            
+            const data = await fetch(`${apiBase}${endpoint}`, {
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`
+                }
+            }).then(res => res.json()).catch(() => {
+                document.getElementById('hackatime-down').style.display = 'inline';
+                return null;
+            });
+            document.getElementById('hackatime-down').style.display = 'none';
+
+            // cache so we don't spam hackatime
+            if(cacheDuration > 0 && data) localStorage.setItem(cacheKey, JSON.stringify({ data, timestamp: now }));
+
+            return data;
+        }
+        
+        function formatTime(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            if(hours === 0) return `${minutes}m`;
+            return `${hours}h ${minutes}m`;
+        }
+        function timeProgressColor(value, max) {
+            // Green when < 50%, interpolate to red as approaching 100%, then red for anything over
+            if(value >= max) return 'rgb(200, 100, 100)';
+            if(value <= max * 0.5) return 'rgb(100, 200, 100)';
+            
+            const ratio = (value - max / 2) / (max / 2);
+            const r = ratio;
+            const g = 1 - ratio;
+            return `rgb(${r * 100 + 100}, ${g * 100 + 100}, 100)`;
+        }
+
+        let hackatimeSecondsAfterLatestLog = 0;
+        let trackedSecondsSinceLastDemo = 0;
+        let estimatedTrackedSecondsAdded = 0;
+        let totalHackatimeSeconds = 0;
+        let totalLoggedSeconds = 0;
+
+        let latestDevlogTime = null;
+
+        let hackatimeUpdateTime = null;
+        let shibaUpdateTime = null;
+        
+        /** @param {string | undefined} start ISO 8601 date string */
+        async function getHackatimeTimeBetween(start, end = undefined, cacheKey = `between_${start || 'start'}_${end || 'end'}`) {
+            // If the start and end time are less than 2 minutes (idk artitrary limit) apart, skip. Hackatime doesn't like when we ask for very short durations, it seems.
+            if(start && end) {
+                const startDate = new Date(start);
+                const endDate = new Date(end);
+                if(endDate.getTime() - startDate.getTime() < 2 * 60 * 1000) {
+                    console.log("Skipping hackatime query for short duration");
+                    return 0;
+                }
+            }
+
+            const data = await sendHackatimeRequest(`users/my/project/${projectName}`, cacheHackatimeDuration, cacheKey, {
+                start_date: start ?? undefined,
+                end_date: end ?? undefined
+            });
+            if(!data) return;
+
+            if(data.error) {
+                if(data.error === "User not found") {
+                    document.getElementById('invalid-api-key').style.display = 'inline';
+                } else if(data.error === "found nuthin") {
+                    document.getElementById('invalid-hackatime-project').style.display = 'inline';
+                } else {
+                    alert(`Error: ${data.error}`);
+                }
+                return;
+            }
+
+            return data.total_seconds;
+        }
+
+        async function updateHackatime() {
+            const data = await sendHackatimeRequest(`users/my/project/${projectName}`, cacheHackatimeDuration, `total_${projectName}`);
+            if(!data) {
+                document.getElementById('invalid-api-key').style.display = 'inline';
+                return;
+            }
+
+            if(data.error) {
+                if(data.error === "User not found") {
+                    document.getElementById('invalid-api-key').style.display = 'inline';
+                } else if(data.error === "found nuthin") {
+                    document.getElementById('invalid-hackatime-project').style.display = 'inline';
+                } else {
+                    alert(`Error: ${data.error}`);
+                }
+                return;
+            }
+
+            console.log("Hackatime data loaded", data);
+
+            totalHackatimeSeconds = data.total_seconds || 0;
+            // Total hackatime time
+            // This only depends on hackatime data so can be updated here
+            document.getElementById('total-hackatime-time').innerText = formatTime(totalHackatimeSeconds);
+
+            // Get the hackatime time after the latest devlog
+            if(latestDevlogTime) {
+                hackatimeSecondsAfterLatestLog = await getHackatimeTimeBetween(latestDevlogTime.toISOString(), undefined, "after_latest_log") || 0;
+                console.log("Calculated hackatime after latest log:", hackatimeSecondsAfterLatestLog);
+            } else {
+                hackatimeSecondsAfterLatestLog = 0;
+            }
+
+            hackatimeUpdateTime = new Date();
+            updateDisplay();
+        }
+
+        async function getShibaData() {
+            // If cached recently, skip
+            if(cacheShibaDuration > 0) {
+                const cached = localStorage.getItem('shiba_cache');
+                if(cached) {
+                    try {
+                        const { data, timestamp } = JSON.parse(cached);
+                        if(Date.now() - timestamp < cacheShibaDuration * 1000) {
+                            console.log('Using cached shiba data');
+                            return data;
+                        }
+                        console.log('Shiba cache expired');
+                    } catch (e) {
+                        // fall through to fetch
+                    }
+                }
+            }
+            
+            // omg thomasss why is this a post request and why does it return like 10mb of json
+            const res = await fetch(`/api/games`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ token: shibaToken })
+            }).then(res => res.json()).catch((e) => {
+                console.error(e);
+                document.getElementById('invalid-shiba-token').style.display = 'inline';
+            });
+
+            // cache so we don't spam shiba
+            if(cacheShibaDuration > 0 && res) localStorage.setItem('shiba_cache', JSON.stringify({ data: res, timestamp: Date.now() }));
+            return res;
+        }
+
+        async function updateShiba() {
+            document.getElementById('reloading-shiba').style.display = 'block';
+            document.getElementById('refresh').disabled = true;
+
+            const data = await getShibaData();
+            if(!data) return;
+            
+            console.log("Shiba data loaded", data);
+            
+            if(data.length === 0) {
+                document.getElementById('invalid-shiba-project').style.display = 'inline';
+                return;
+            }
+
+            const game = data.find(g => g.name === shibaProjectName);
+            if(!game) {
+                document.getElementById('invalid-shiba-project').style.display = 'inline';
+                return;
+            }
+
+            const posts = game.posts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+            console.log(posts);
+
+            const postsContainer = document.getElementById('posts');
+            postsContainer.innerHTML = '';
+
+            // Calculate total artlog time and total logged time
+            let totalArtlogSeconds = 0;
+            totalLoggedSeconds = 0;
+
+            for(const post of posts) {
+                const postEl = document.createElement('div');
+                postEl.className = 'post';
+
+                let timeSeconds = post.HoursSpent * 60 * 60; // not to be confused with "hoursSpent", which is a rounded version :sob:
+
+                const badgeEl = document.createElement('span');
+                badgeEl.className = 'badge';
+                if(post.postType === "devlog" && post.PlayLink) {
+                    badgeEl.classList.add('demo');
+                    badgeEl.innerText = 'Demo';
+                } else if(post.postType === "devlog") {
+                    badgeEl.classList.add('devlog');
+                    badgeEl.innerText = 'Devlog';
+                } else if(post.postType === "artlog") {
+                    badgeEl.classList.add('artlog');
+                    badgeEl.innerText = 'Artlog';
+                    // Yep, timeSpentOnAsset is the correct field out of the 4 (!!) time fields that the API returns
+                    timeSeconds = post.timeSpentOnAsset * 60 * 60; // hours to seconds
+                    totalArtlogSeconds += timeSeconds;
+                }
+                totalLoggedSeconds += Math.min(timeSeconds, 4 * 60 * 60); // Cap at 4 hours per log
+
+                postEl.appendChild(badgeEl);
+
+                const descEl = document.createElement('span');
+                descEl.className = 'description';
+
+                function format(text, maxLength = 300) {
+                    text = text.replace(/\s+/g, ' ').trim();
+
+                    if(!text) return '';
+                    if(text.length <= maxLength) return text;
+                    return text.slice(0, maxLength) + '...';
+                }
+                descEl.innerText = format(post.content) || '(no description)';
+                postEl.appendChild(descEl);
+
+                const timeEl = document.createElement('span');
+                timeEl.className = 'logged-time';
+                timeEl.innerText = formatTime(timeSeconds || 0) + ' logged';
+
+                if(timeSeconds === 0 && post !== posts[posts.length - 1]) {
+                    timeEl.classList.add('warning');
+                    timeEl.dataset.warning = 'updating';
+                }
+                if(post.postType === "devlog" && post.HoursSpent > 4) {
+                    timeEl.classList.add('warning');
+                    timeEl.title = "Time over 4 hours isn't counted! make sure to log more frequently.";
+                }
+
+                postEl.appendChild(timeEl);
+
+                postsContainer.appendChild(postEl);
+            }
+
+            // Total artlog and logged time; only depends on shiba data so can be updated here
+            document.getElementById('total-artlog-time').innerText = formatTime(totalArtlogSeconds);
+            document.getElementById('total-logged-time').innerText = formatTime(totalLoggedSeconds);
+            
+            trackedSecondsSinceLastDemo = 0;
+            let firstWithNonzeroTime = null;
+            for(const post of posts) {
+                if(post.HoursSpent > 0 && !firstWithNonzeroTime) firstWithNonzeroTime = post;
+                
+                if(post.postType === "devlog" && post.PlayLink) break;
+                if(post.postType === "artlog") {
+                    trackedSecondsSinceLastDemo += post.timeSpentOnAsset * 60 * 60;
+                    continue;
+                } else {
+                    trackedSecondsSinceLastDemo += post.HoursSpent * 60 * 60;
+                }
+            }
+
+            // Record tracked time since the latest demo
+            let latestStillUpdating = false;
+            let latestDevlog = null;
+            for(const post of posts) {
+                if(post.postType === "devlog") {
+                    if(post.HoursSpent === 0) {
+                        latestStillUpdating = true;
+                    }
+                    
+                    // Stop at the first demo we find with time logged
+                    latestDevlog = post;
+                    break;
+                }
+            }
+
+            // Compensate for updating logs by querying hackatime
+            estimatedTrackedSecondsAdded = 0;
+            if(firstWithNonzeroTime && firstWithNonzeroTime !== latestDevlog) {
+                const hackatimeSinceFirstNonzero = await getHackatimeTimeBetween(firstWithNonzeroTime.createdAt, latestDevlog.createdAt, "between_first_nonzero_and_latest") || 0;
+                console.log(`Adding hackatime since first nonzero log (before ${latestDevlog.createdAt}): `, hackatimeSinceFirstNonzero);
+                estimatedTrackedSecondsAdded += hackatimeSinceFirstNonzero
+
+                // Update the latest devlogs' time to show this estimate
+                const warnings = document.querySelectorAll(`.post .logged-time[data-warning="updating"]`);
+                warnings.forEach(warning => {
+                    warning.innerText = formatTime(hackatimeSinceFirstNonzero / warnings.length) + ' estimated';
+                    warning.title = "Shiba is really weird and doesn't update the latest log's time immediately, so this is an estimate based on hackatime";
+                });
+            }
+
+            document.getElementById('log-still-updating').style.display = latestStillUpdating ? 'inline' : 'none';
+
+            latestDevlogTime = latestDevlog ? new Date(latestDevlog.createdAt) : null;
+
+            shibaUpdateTime = new Date();
+            updateDisplay();
+
+            document.getElementById('reloading-shiba').style.display = 'none';
+            document.getElementById('refresh').disabled = false;
+        }
+
+        function updateDisplay() {
+            const unloggedCodeTime = hackatimeSecondsAfterLatestLog;
+            const estimatedSinceLastDemo = trackedSecondsSinceLastDemo + estimatedTrackedSecondsAdded;
+            const totalSinceLastDemo = estimatedSinceLastDemo + unloggedCodeTime;
+
+            const maxDemo = 10 * 60 * 60;
+            
+            // Total time
+            document.getElementById('total-time').innerText = formatTime(totalLoggedSeconds + unloggedCodeTime);
+
+            // Hackatime since last log
+            document.getElementById('hackatime-since-last-log').innerText = formatTime(unloggedCodeTime);
+
+            const maxUnlogged = 4 * 60 * 60;
+            const unloggedProgress = document.getElementById('progress-since-last-log');
+            unloggedProgress.max = maxUnlogged;
+            unloggedProgress.value = Math.min(unloggedCodeTime, maxUnlogged);
+            unloggedProgress.style.setProperty('--color', timeProgressColor(unloggedCodeTime, maxUnlogged));
+
+            // Since last demo + unlogged
+            document.getElementById('since-last-demo').innerText = formatTime(totalSinceLastDemo);
+
+            const totalDemoProgress = document.getElementById('progress-since-last-demo');
+            totalDemoProgress.max = maxDemo;
+            totalDemoProgress.value = Math.min(totalSinceLastDemo, maxDemo);
+            totalDemoProgress.style.setProperty('--color', timeProgressColor(totalSinceLastDemo, maxDemo));
+            
+            const expectedTickets = Math.min(5, Math.floor((totalSinceLastDemo) / (2 * 60 * 60)));
+            document.getElementById('expected-playtest-tickets').innerText = expectedTickets;
+
+            // Since last demo
+            document.getElementById('tracked-since-last-demo').innerText = formatTime(estimatedSinceLastDemo);
+            
+            const demoProgress = document.getElementById('progress-tracked-since-last-demo');
+            demoProgress.max = maxDemo;
+            demoProgress.value = Math.min(estimatedSinceLastDemo, maxDemo);
+            demoProgress.style.setProperty('--color', timeProgressColor(estimatedSinceLastDemo, maxDemo));
+
+            // Last updated
+            document.getElementById('last-updated').innerText = `Last updated: hackatime ${hackatimeUpdateTime ? hackatimeUpdateTime.toLocaleTimeString() : 'never'}, shiba ${shibaUpdateTime ? shibaUpdateTime.toLocaleTimeString() : 'never'}`;
+        }
+
+        function sendNotifications() {
+            if(notificationPermission === 'granted') {
+                if(hackatimeSecondsAfterLatestLog >= 3 * 60 * 60) {
+                    console.log('Sending unlogged hackatime notification');
+                    new Notification('Shiba Time Tracker', {
+                        body: 'You have 3+ hours of unlogged hackatime! Consider making a devlog.',
+                        icon: 'https://shiba.hackclub.com/favicon.ico'
+                    });
+                }
+                if(trackedSecondsSinceLastDemo + hackatimeSecondsAfterLatestLog >= 10 * 60 * 60) {
+                    console.log('Sending since last demo notification');
+                    new Notification('Shiba Time Tracker', {
+                        body: 'You have tracked 10+ hours since your last demo! Consider making a demo.',
+                        icon: 'https://shiba.hackclub.com/favicon.ico'
+                    });
+                }
+            }
+        }
+
+        document.getElementById('refresh').onclick = async () => {
+            // Clear caches
+            localStorage.removeItem('shiba_cache');
+            for(const key in localStorage) {
+                if(key.startsWith('hackatime_cache_')) localStorage.removeItem(key);
+            }
+
+            await updateShiba();
+            await updateHackatime();
+        };
+
+        (async () => {
+            await updateShiba();
+            await updateHackatime();
+            sendNotifications();
+
+            let i = 0;
+            setInterval(async () => {
+                await updateHackatime();
+                if(i++ % 5 === 0) sendNotifications();
+            }, 3 * 60 * 1000);
+
+            setInterval(async () => {
+                updateShiba();
+            }, 30 * 60 * 1000);
+        })()
+    </script>
+</body>
+</html>
